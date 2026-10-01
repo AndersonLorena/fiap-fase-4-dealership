@@ -112,8 +112,8 @@ Tags e versões validadas para rodar o projeto, alinhadas a [`infra/compose/serv
 | `redis` | `redis:7-alpine` | LTS: Redis 7 (Open Source 7.x; 7.2 e 7.4 são as linhas extended/LTS) |
 | `garage` | `dxflrs/garage:v2.3.0` | Sem LTS oficial: Garage v2.3.0 |
 | `keycloak` | `quay.io/keycloak/keycloak:26.7.1` | Sem LTS da comunidade: Keycloak 26.7.1 |
-| `account` | `fiapf3-account:dev` / GHCR | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
-| `dealership` | `fiapf3-dealership:dev` / GHCR | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
+| `account` | `fiapf3-account:dev` / GHCR `fiap-fase-4-account` | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
+| `dealership` | `fiapf3-dealership:dev` / GHCR `fiap-fase-4-dealership` | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
 | `nginx` | `nginx:1.30.4-alpine` (digest pinado) | nginx 1.30 Alpine (ramo estável par) |
 | `prometheus` | `prom/prometheus:v3.2.1` | Sem LTS oficial: Prometheus v3.2.1 |
 | `grafana` | `grafana/grafana:12.4.8` | Sem LTS oficial: Grafana 12.4.8 (último minor da série 12; patch até mai/2027) |
@@ -133,7 +133,7 @@ fiap-fase-4-dealership/
 │   ├── compose/             # Compose dev/prod: API + Postgres próprio
 │   └── confs/postgresql/    # Init só do database fiapf3_dealership
 ├── docs/                    # Brief, arquitetura, Postman collection
-└── .github/workflows/       # dealership-ci e CD (imagem fiapf3-dealership)
+└── .github/workflows/       # dealership-ci e CD (imagem fiap-fase-4-dealership no GHCR)
 ```
 
 ---
@@ -445,9 +445,9 @@ O workflow `[cd.yml](./.github/workflows/cd.yml)` publica Continuous Delivery **
 
 Imagem publicada por este repositório:
 
-- `ghcr.io/<owner>/fiapf3-dealership:latest` e `:<sha>`
+- `ghcr.io/<owner>/fiap-fase-4-dealership:latest` e `:<sha>`
 
-`ghcr.io/<owner>/fiapf3-account` é publicada pelo repositório `fiap-fase-4-system`.
+`ghcr.io/<owner>/fiap-fase-4-account` é publicada pelo repositório `fiap-fase-4-system`.
 
 Se os pacotes forem privados, autentique o Docker no host que for fazer pull:
 
@@ -459,7 +459,7 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 
 ### Ambiente prod (VPS)
 
-Use `[services.prod.yml](./infra/compose/services.prod.yml)` (`name: fiapf3-dealership-prod`) depois que o Compose de produção de `fiap-fase-4-system` estiver no ar (rede `fiapf3-prod-net`, Nginx na porta **80**). Este `up` só puxa `fiapf3-dealership` do GHCR e sobe o Postgres `fiapf3_dealership`. O acesso continua `/api/dealership/…` pelo Nginx do outro repositório.
+Use `[services.prod.yml](./infra/compose/services.prod.yml)` (`name: fiapf3-dealership-prod`) depois que o Compose de produção de `fiap-fase-4-system` estiver no ar (rede `fiapf3-prod-net`, Nginx na porta **80**). Este `up` só puxa `fiap-fase-4-dealership` do GHCR e sobe o Postgres `fiapf3_dealership`. O acesso continua `/api/dealership/…` pelo Nginx do outro repositório.
 
 ```bash
 cp infra/compose/.env.prod.example infra/compose/.env.prod
@@ -582,7 +582,7 @@ Os itens de [docs/0-fiap-fase-4.md](./docs/0-fiap-fase-4.md) estão atendidos.
 | Demais funções em outro repositório e outro banco | Atendido (`fiap-fase-4-system`: `account-api`, Postgres `fiapf3_account` + `keycloak`) |
 | Comunicação só por HTTP, cada serviço no seu limite | Atendido (esta API chama a account no validate buyer; a account não chama a dealership nem abre `fiapf3_dealership`) |
 | Escalar a API de dealership conforme a carga | Atendido (serviço, imagem, Compose e banco isolados; ver abaixo) |
-| CI/CD por repositório, gatilho no merge da `main` | Atendido (CI `./mvnw verify`; CD publica `fiapf3-dealership` no GHCR). O `up` na VPS é o Compose de produção |
+| CI/CD por repositório, gatilho no merge da `main` | Atendido (CI `./mvnw verify`; CD publica `fiap-fase-4-dealership` no GHCR). O `up` na VPS é o Compose de produção |
 | Testes automatizados | Atendido (`./mvnw verify` + REST Assured no `dealership-ci`) |
 | `README.md` (o que é, como usar, como testar) | Atendido (este arquivo) |
 | CI/CD e deploy automatizado                                    | CI + CD (publish GHCR) atendidos; deploy na VPS é **manual** via `services.prod.yml` (sem SSH no Actions) |
