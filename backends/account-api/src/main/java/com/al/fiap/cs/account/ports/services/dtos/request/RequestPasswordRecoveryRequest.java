@@ -1,4 +1,0 @@
-package com.al.fiap.cs.account.ports.services.dtos.request;
-
-public record RequestPasswordRecoveryRequest(String email) {
-}

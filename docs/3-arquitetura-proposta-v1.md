@@ -1,8 +1,10 @@
 # Arquitetura proposta — FIAP Car Sales (account-api + dealership-api)
 
+O código está em dois repositórios. **`fiap-fase-4-dealership`** (este) guarda a `dealership-api` e o Postgres de `fiapf3_dealership` (hostname `dealership-postgresql`, rede privada do Compose). **`fiap-fase-4-system`** guarda a `account-api`, o Nginx e a infra compartilhada. A `dealership-api` entra na rede `fiapf3-dev-net` / `fiapf3-prod-net` criada por aquele stack. O acesso externo não muda: `http://localhost/api/dealership/...` no Nginx da account. Keycloak, Garage, Redis e o realm não estão neste repositório.
+
 ## 1. Objetivo
 
-Este documento descreve a arquitetura proposta e o planejamento detalhado de implementação dos backends da plataforma de revenda de veículos (FIAP Fase 3):
+Este documento descreve a arquitetura proposta e o planejamento detalhado de implementação dos backends da plataforma de revenda de veículos (FIAP Fase 4):
 
 - **Parte I — `account-api`:** ciclo de vida de conta e autenticação.
 - **Parte II — `dealership-api`:** catálogo, veículos, listagem, compra e fotos.
@@ -19,7 +21,7 @@ Este documento descreve a arquitetura proposta e o planejamento detalhado de imp
 
 A solução utiliza:
 
-- **API:** Java 21 e Spring Boot 4, em [`backends/account-api`](../backends/account-api).
+- **API:** Java 21 e Spring Boot 4, em `backends/account-api` no repositório `fiap-fase-4-system`.
 - **Identidade:** Keycloak (realm `fiap-car-sales`), client confidencial `account-api` (OIDC / JWT).
 - **Persistência:** PostgreSQL, banco lógico `fiapf3_account`.
 - **Locks distribuídos:** Redis, chave `lock:account:{id}` (não é cache de sessão).
@@ -30,10 +32,10 @@ A solução utiliza:
 
 Referências:
 
-- [Especificação do desafio](./0-fiap-fase-3.md)
+- [Especificação do desafio](./0-fiap-fase-4.md)
 - [Documento de arquitetura final](./2-documento-de-arquitetura-final.png)
 - [Rascunho de arquitetura inicial](./1-rascunho-de-arquitetura-inicial.png)
-- Realm Keycloak: [`infra/confs/keycloak/import/fiap-car-sales-realm.json`](../infra/confs/keycloak/import/fiap-car-sales-realm.json)
+- Realm Keycloak: `infra/confs/keycloak/import/fiap-car-sales-realm.json` no repositório `fiap-fase-4-system`.
 
 ## 2. Resumo da solução
 
@@ -588,7 +590,7 @@ Infra já prevista em [`infra/compose/services.dev.yml`](../infra/compose/servic
 
 Empacotamento (as-built):
 
-- `Dockerfile` multi-stage Distroless em `backends/account-api` e `backends/dealership-api`;
+- `Dockerfile` multi-stage Distroless em `backends/dealership-api` (o da `account-api` está no repositório `fiap-fase-4-system`);
 - `application-docker.properties` mapeando env vars do Compose;
 - H2 apenas para testes; runtime Docker usa PostgreSQL.
 
@@ -705,7 +707,7 @@ Orquestração: ports driven + domínio; `@Transactional` apenas onde a unidade 
 
 ## 16. Atendimento aos requisitos (Parte I)
 
-| Requisito ([0-fiap-fase-3.md](./0-fiap-fase-3.md)) | Como a account-api atende |
+| Requisito ([0-fiap-fase-4.md](./0-fiap-fase-4.md)) | Como a account-api atende |
 |---|---|
 | Cadastro de comprador antes da compra | `POST /api/v1/accounts` + usuário Keycloak `CUSTOMER` |
 | Registro/autorização separados dos dados de venda | Serviço e banco próprios; Keycloak como IdP; sem acesso a `fiapf3_dealership` |
@@ -732,7 +734,7 @@ A listagem/compra de veículos é detalhada na **Parte II** (`dealership-api`).
 13. Exigir testes REST Assured de ponta a ponta para cada endpoint novo ou alterado.
 14. Empacotar com Dockerfile alinhado ao Compose existente e observar via Actuator/Prometheus/Grafana.
 
-Com essas decisões, o planejamento da `account-api` cobre a implementação backend dos fluxos de conta/identidade, alinhada ao diagrama final e ao requisito de identidade separada da Fase 3.
+Com essas decisões, o planejamento da `account-api` cobre a implementação backend dos fluxos de conta/identidade, alinhada ao diagrama final e ao requisito de identidade separada da Fase 4.
 
 ---
 
@@ -750,7 +752,7 @@ Planejamento detalhado do backend da **`dealership-api`** em [`backends/dealersh
 
 Stack alinhada à Parte I: Java 21, Spring Boot 4, hexagonal + DDD + Object Calisthenics.
 
-Infra já provisionada: Postgres `fiapf3_dealership`, Redis, Garage (`fiapf3-vehicle-photos`), Nginx `/api/dealership/`, client Keycloak `dealership-api`, `ACCOUNT_API_URL`.
+Runtime deste repositório: Postgres `fiapf3_dealership` em [`infra/compose/services.dev.yml`](../infra/compose/services.dev.yml), JDBC `dealership-postgresql:5432`. Redis, Garage (`fiapf3-vehicle-photos`), Nginx `/api/dealership/`, client Keycloak `dealership-api` e `ACCOUNT_API_URL=http://account:8080` vêm do Compose de `fiap-fase-4-system`, na mesma rede Docker.
 
 ## 19. Visão de componentes
 

@@ -2,11 +2,12 @@
 
 > Cadastre veículos, autentique compradores e efetive compras online — com arquitetura hexagonal, identidade apartada (Keycloak) e microsserviços Spring Boot.
 
-[Account CI](https://github.com/AndersonLorena/fiap-fase-3/actions/workflows/account-ci.yml)
-[Dealership CI](https://github.com/AndersonLorena/fiap-fase-3/actions/workflows/dealership-ci.yml)
-[CD GHCR](https://github.com/AndersonLorena/fiap-fase-3/actions/workflows/cd.yml)
+[Dealership CI](https://github.com/AndersonLorena/fiap-fase-4-dealership/actions/workflows/dealership-ci.yml)
+[CD GHCR](https://github.com/AndersonLorena/fiap-fase-4-dealership/actions/workflows/cd.yml)
 
-**Repositório:** [github.com/AndersonLorena/fiap-fase-3](https://github.com/AndersonLorena/fiap-fase-3)
+**Repositório:** [github.com/AndersonLorena/fiap-fase-4-dealership](https://github.com/AndersonLorena/fiap-fase-4-dealership)
+
+Este repositório contém a `dealership-api` e o Postgres `fiapf3_dealership`. Nginx, Keycloak, Redis, Garage, account-api, Prometheus e Grafana sobem em [fiap-fase-4-system](https://github.com/AndersonLorena/fiap-fase-4-system). Suba esse stack primeiro: ele cria a rede `fiapf3-dev-net` / `fiapf3-prod-net`. Este Compose entra nessa rede. O acesso externo continua `http://localhost/api/dealership/...` pelo Nginx do outro repositório.
 
 ---
 
@@ -14,7 +15,7 @@
 
 ## O que faz
 
-O FIAP Car Sales atende ao desafio da **FIAP PósTech SOAT — Fase 3**: uma plataforma de revenda de veículos na internet. O time de UX cuida do frontend; este monorepo entrega as **APIs** e a **infraestrutura** para cadastro de clientes, catálogo, listagens e compra.
+O FIAP Car Sales atende ao desafio da **FIAP PósTech SOAT — Fase 4**: uma plataforma de revenda de veículos na internet. O time de UX cuida do frontend; este repositório entrega a **dealership-api** (catálogo, listagens e compra) e o banco `fiapf3_dealership`. Conta e infraestrutura compartilhada ficam na `account-api`.
 
 
 | Capacidade                    | Como                                                                                     |
@@ -74,7 +75,7 @@ Documentação completa: `[docs/3-arquitetura-proposta-v1.md](./docs/3-arquitetu
 
 | Diagrama / doc       | Arquivo                                                                                      |
 | -------------------- | -------------------------------------------------------------------------------------------- |
-| Brief do desafio     | `[docs/0-fiap-fase-3.md](./docs/0-fiap-fase-3.md)`                                           |
+| Brief do desafio     | `[docs/0-fiap-fase-4.md](./docs/0-fiap-fase-4.md)`                                           |
 | Rascunho inicial     | `[docs/1-rascunho-de-arquitetura-inicial.png](./docs/1-rascunho-de-arquitetura-inicial.png)` |
 | Arquitetura final    | `[docs/2-documento-de-arquitetura-final.png](./docs/2-documento-de-arquitetura-final.png)`   |
 | Arquitetura proposta | `[docs/3-arquitetura-proposta-v1.md](./docs/3-arquitetura-proposta-v1.md)`                   |
@@ -98,7 +99,7 @@ Documentação completa: `[docs/3-arquitetura-proposta-v1.md](./docs/3-arquitetu
 | Entrada HTTP    | Nginx 1.30 (reverse proxy)                                        |
 | Observabilidade | Actuator + Micrometer, Prometheus 3, Grafana 12                   |
 | Runtime         | Docker Compose (`services.dev.yml` / `services.prod.yml`)         |
-| CI              | GitHub Actions (`account-ci`, `dealership-ci`)                    |
+| CI              | GitHub Actions (`dealership-ci`)                                  |
 | CD              | GitHub Actions (`cd.yml`) — publish de imagens no GHCR            |
 
 ### Versões LTS usadas
@@ -125,15 +126,14 @@ Tags e versões validadas para rodar o projeto, alinhadas a [`infra/compose/serv
 ## Estrutura do repositório
 
 ```text
-fiap-fase-3/
+fiap-fase-4-dealership/
 ├── backends/
-│   ├── account-api/         # Conta, auth, recovery, validate buyer S2S
 │   └── dealership-api/      # Catálogo, veículos, listagem, compra, fotos
 ├── infra/
-│   ├── compose/             # Compose dev/prod + .env.example / .env.prod.example
-│   └── confs/               # Nginx, Postgres, Keycloak, Garage, Prometheus, Grafana
+│   ├── compose/             # Compose dev/prod: API + Postgres próprio
+│   └── confs/postgresql/    # Init só do database fiapf3_dealership
 ├── docs/                    # Brief, arquitetura, Postman collection
-└── .github/workflows/       # Pipelines de CI e CD (publish GHCR)
+└── .github/workflows/       # dealership-ci e CD (imagem fiapf3-dealership)
 ```
 
 ---
@@ -144,7 +144,20 @@ fiap-fase-3/
 
 - [Docker](https://docs.docker.com/get-docker/) + Docker Compose v2
 - (Opcional, para rodar na IDE / testes) Java 21
-- (Opcional) Chave de API do Resend para e-mails de recuperação de senha
+- O stack de [fiap-fase-4-system](https://github.com/AndersonLorena/fiap-fase-4-system) já no ar (rede, Nginx, Redis, Garage, Keycloak e account-api)
+
+---
+
+
+
+## Dependências e ordem para rodar
+
+1. Docker e Docker Compose v2. Java 21 só é necessário para testes na IDE.
+2. **Primeiro** o repositório `fiap-fase-4-system`. Ele cria a rede `fiapf3-dev-net` (produção: `fiapf3-prod-net`) e sobe Nginx (única porta **80**), `account-api`, Postgres (`fiapf3_account` e `keycloak`), Redis, Garage, Keycloak, Prometheus e Grafana.
+3. **Depois** este repositório. O Compose entra nessa rede e sobe só a `dealership-api` e o Postgres `fiapf3_dealership` (hostname `dealership-postgresql`). Sem a rede da account, este Compose não sobe.
+4. Os `.env` dos dois repositórios usam os mesmos `REDIS_PASSWORD`, chaves do Garage e `KEYCLOAK_DEALERSHIP_CLIENT_SECRET`.
+5. O acesso externo é só pelo Nginx: `http://localhost/api/account/...` e `http://localhost/api/dealership/...`. Sem este container no ar, `/api/dealership/*` responde 502.
+6. Para desligar: este stack primeiro, o da account depois. A dealership usa a rede criada pela account.
 
 ---
 
@@ -152,23 +165,24 @@ fiap-fase-3/
 
 ## Início rápido (Docker Compose — dev)
 
-O Compose **dev** (`[infra/compose/services.dev.yml](./infra/compose/services.dev.yml)`, projeto `fiapf3-dev`) faz **build local** das imagens (`fiapf3-account:dev`, `fiapf3-dealership:dev`) e sobe o stack **completo**: Postgres, Redis, Garage, Keycloak, `account-api`, `dealership-api`, Nginx, Prometheus e Grafana.
+Suba primeiro o Compose de [fiap-fase-4-system](https://github.com/AndersonLorena/fiap-fase-4-system). Ele cria a rede `fiapf3-dev-net` e o Nginx na porta **80**.
 
-O **Nginx** é a única entrada HTTP das APIs no host (porta **80**). Os containers internos (`account`, `dealership`, etc.) **não** publicam porta no host.
+O Compose **dev** daqui (`[infra/compose/services.dev.yml](./infra/compose/services.dev.yml)`, projeto `fiapf3-dealership-dev`) faz **build local** de `fiapf3-dealership:dev` e sobe só o Postgres `fiapf3_dealership` (rede privada `fiapf3-dealership-dev-net`, hostname `dealership-postgresql`) e a `dealership-api`. A API entra também em `fiapf3-dev-net`, então Redis, Garage, Keycloak e `http://account:8080` continuam com os hostnames atuais. Nenhum container deste repo publica porta no host.
 
 ```bash
-# 1. Clone
-git clone git@github.com:AndersonLorena/fiap-fase-3.git
-cd fiap-fase-3
+# 1. Account + infra já no ar (repositório fiap-fase-4-system)
 
-# 2. Ambiente
+# 2. Clone
+git clone git@github.com:AndersonLorena/fiap-fase-4-dealership.git
+cd fiap-fase-4-dealership
+
+# 3. Ambiente (mesmos REDIS_PASSWORD, GARAGE_* e KEYCLOAK_DEALERSHIP_CLIENT_SECRET da account)
 cp infra/compose/.env.example infra/compose/.env
-# Ajuste os secrets se necessário. Defina RESEND_API_KEY para habilitar e-mail.
 
-# 3. Subir tudo (build local)
+# 4. Subir dealership + Postgres próprio
 docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env up -d --build
 
-# 4. Remover tudo (build local)
+# 5. Remover este stack (não derruba a account)
 docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env down -v
 ```
 
@@ -178,7 +192,7 @@ Smoke (com o stack no ar):
 curl -sS http://localhost/api/dealership/v1/brands
 ```
 
-Collection Postman (todas as rotas): `[docs/fiapf3.postman_collection.json](./docs/fiapf3.postman_collection.json)`.
+Collection Postman (todas as rotas): `[docs/fiapf4.postman_collection.json](./docs/fiapf4.postman_collection.json)`.
 
 Swagger UI (Authorize com o access token do login):
 
@@ -207,7 +221,7 @@ Swagger UI (Authorize com o access token do login):
 
 ### Grafana — dashboard JVM (Micrometer)
 
-O Compose provisiona o dashboard **[JVM (Micrometer)](https://grafana.com/grafana/dashboards/4701-jvm-micrometer/)** (ID `4701`). Os labels Prometheus `application=account` / `application=dealership` alimentam o seletor.
+O Compose de `fiap-fase-4-system` provisiona o dashboard **[JVM (Micrometer)](https://grafana.com/grafana/dashboards/4701-jvm-micrometer/)** (ID `4701`). Os labels Prometheus `application=account` / `application=dealership` alimentam o seletor. O scrape de `dealership:8080` fica down até este Compose entrar na rede.
 
 **Já provisionado (recomendado):**
 
@@ -215,7 +229,7 @@ O Compose provisiona o dashboard **[JVM (Micrometer)](https://grafana.com/grafan
 2. Em **Dashboards** → pasta **FIAP Car Sales** → abra **JVM (Micrometer)**.
 3. Escolha `application` = `account` ou `dealership` (e a `instance` correspondente).
 
-Se o dashboard não aparecer após um `up` (volume Grafana antigo), recrie o serviço:
+Se o dashboard não aparecer após um `up` da account (volume Grafana antigo), recrie o serviço no repositório `fiap-fase-4-system`:
 
 ```bash
 docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env up -d --force-recreate grafana
@@ -351,7 +365,8 @@ curl -sS 'http://localhost/api/dealership/v1/cars?status=SOLD&sort=price,asc'
 
 ```bash
 docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env down
-# Adicione -v para apagar volumes (Postgres, Redis, Garage, Keycloak, Grafana, Prometheus)
+# Adicione -v para apagar o volume do Postgres da dealership.
+# Isso não remove Redis, Garage, Keycloak nem o Postgres da account.
 ```
 
 ---
@@ -360,35 +375,23 @@ docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env d
 
 ## Variáveis de ambiente
 
-**Dev** — copie de `[infra/compose/.env.example](./infra/compose/.env.example)`:
+**Dev** — copie de `[infra/compose/.env.example](./infra/compose/.env.example)`. Redis, Garage e o client Keycloak `dealership-api` precisam dos mesmos valores do `.env` de `fiap-fase-4-system`. Admin do Keycloak, Resend e Grafana ficam naquele repositório.
 
 
-| Variável                                                            | Finalidade                                                                          |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `UPLOAD_INTENT_SECRET`                                              | Segredo dos tokens de intent de upload de fotos (dealership)                        |
-| `POSTGRES_PASSWORD`                                                 | Senha do Postgres (default local: `fiapf3`)                                         |
-| `REDIS_PASSWORD`                                                    | Autenticação Redis para locks distribuídos                                          |
-| `KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD`                        | Admin console do Keycloak                                                           |
-| `KEYCLOAK_URL`                                                      | Issuer/token interno (`http://keycloak:8080` no Compose)                            |
-| `KEYCLOAK_ADMIN_URL`                                                | URL pública do Admin Console (`http://keycloak.localhost` no dev)                   |
-| `KEYCLOAK_REALM`                                                    | Realm OIDC (`fiap-car-sales`)                                                       |
-| `ACCOUNT_BOOTSTRAP_ADMIN_*`                                         | Conta admin de produto criada pela account-api no profile Docker                    |
-| `KEYCLOAK_ACCOUNT_CLIENT_ID` / `SECRET`                             | Client confidencial `account-api`                                                   |
-| `KEYCLOAK_DEALERSHIP_CLIENT_ID` / `SECRET`                          | Client confidencial `dealership-api`                                                |
-| `KEYCLOAK_PAYMENT_CLIENT_ID` / `SECRET`                             | Client confidencial `payment-processor` (webhook de pagamento)                      |
-| `ACCOUNT_API_URL`                                                   | Base S2S dealership → account (`http://account:8080`)                               |
-| `ACCOUNT_S2S_ALLOWED_CLIENT_IDS`                                    | Clients Keycloak autorizados no buyer-validation (`dealership-api`)                 |
-| `DEALERSHIP_PAYMENT_ALLOWED_CLIENT_IDS`                             | Clients autorizados no webhook (`payment-processor`)                                |
-| `FRONTEND_ORIGIN`                                                   | Origem CORS (ex.: `http://localhost`)                                               |
-| `PASSWORD_RECOVERY_URL`                                             | Link de recuperação nos e-mails                                                     |
-| `GARAGE_ENDPOINT`                                                   | Endpoint S3 interno (`http://garage:3900`)                                          |
-| `GARAGE_PUBLIC_ENDPOINT`                                            | Origem pública nas URLs pré-assinadas (`http://localhost` no dev, via Nginx)        |
-| `GARAGE_ACCESS_KEY` / `GARAGE_SECRET_KEY` / `GARAGE_BUCKET`         | Credenciais S3 e bucket                                                             |
-| `GARAGE_RPC_SECRET` / `GARAGE_ADMIN_TOKEN` / `GARAGE_METRICS_TOKEN` | Secrets do daemon Garage                                                            |
-| `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD`             | Login do Grafana                                                                    |
-| `GF_SERVER_ROOT_URL`                                                | URL pública do Grafana via Nginx (`http://grafana.localhost/` no dev)               |
-| `RESEND_API_KEY`                                                    | Opcional — deixe vazio para pular e-mail de saída                                   |
-| `RESEND_FROM`                                                       | Remetente das notificações de recovery                                              |
+| Variável                                                    | Finalidade                                                                   |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `UPLOAD_INTENT_SECRET`                                      | Segredo dos tokens de intent de upload de fotos                             |
+| `POSTGRES_PASSWORD`                                         | Senha do Postgres próprio (default local: `fiapf3`)                          |
+| `REDIS_PASSWORD`                                            | Senha do Redis da account (locks)                                            |
+| `KEYCLOAK_URL`                                              | Issuer interno (`http://keycloak:8080` na rede compartilhada)                |
+| `KEYCLOAK_REALM`                                            | Realm OIDC (`fiap-car-sales`)                                                |
+| `KEYCLOAK_DEALERSHIP_CLIENT_ID` / `SECRET`                  | Client confidencial `dealership-api`                                         |
+| `ACCOUNT_API_URL`                                           | Base S2S (`http://account:8080`)                                             |
+| `DEALERSHIP_PAYMENT_ALLOWED_CLIENT_IDS`                     | Clients autorizados no webhook (`payment-processor`)                         |
+| `FRONTEND_ORIGIN`                                           | Origem CORS (ex.: `http://localhost`)                                        |
+| `GARAGE_ENDPOINT`                                           | Endpoint S3 interno (`http://garage:3900`)                                   |
+| `GARAGE_PUBLIC_ENDPOINT`                                    | Origem pública nas URLs pré-assinadas (`http://localhost` no dev, via Nginx) |
+| `GARAGE_ACCESS_KEY` / `GARAGE_SECRET_KEY` / `GARAGE_BUCKET` | Credenciais S3 e bucket                                                      |
 
 
 > **Auth:** JWTs são emitidos pelo **Keycloak**. As APIs validam o issuer OIDC; senhas não ficam no Postgres da account-api.
@@ -402,7 +405,7 @@ docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env d
 | `IMAGE_TAG`  | Tag da imagem (`latest` ou SHA do commit publicado) |
 
 
-Em prod, troque `YOUR_PUBLIC_HOST` em `FRONTEND_ORIGIN`, `PASSWORD_RECOVERY_URL`, `GARAGE_PUBLIC_ENDPOINT`, `KEYCLOAK_ADMIN_URL` e `GF_SERVER_ROOT_URL`.
+Em prod, troque `YOUR_PUBLIC_HOST` em `FRONTEND_ORIGIN` e `GARAGE_PUBLIC_ENDPOINT`. `KEYCLOAK_ADMIN_URL` e `GF_SERVER_ROOT_URL` ficam no `.env.prod` de `fiap-fase-4-system`.
 
 ---
 
@@ -425,27 +428,26 @@ Para `./mvnw spring-boot:run` na IDE, é preciso expor Postgres/Redis/Keycloak n
 ## Testes, CI e CD
 
 ```bash
-# account-api
-cd backends/account-api && ./mvnw verify
-
-# dealership-api
 cd backends/dealership-api && ./mvnw verify
 ```
+
+Os testes da `account-api` ficam no repositório `fiap-fase-4-system`.
 
 Os testes de Web API sobem a aplicação em porta aleatória e exercitam os endpoints com **REST Assured** (contrato HTTP, validação, auth e fluxos de domínio).
 
 ### CI
 
-O GitHub Actions (`account-ci`, `dealership-ci`) executa `./mvnw verify` e gera imagens Docker locais (`fiapf3-*:ci`) a cada alteração relevante em PR/push — **sem** publicar no registry.
+O GitHub Actions (`dealership-ci`) executa `./mvnw verify` e gera a imagem Docker local `fiapf3-dealership:ci` a cada alteração relevante em PR/push — **sem** publicar no registry.
 
 ### CD (GHCR)
 
 O workflow `[cd.yml](./.github/workflows/cd.yml)` publica Continuous Delivery **mínimo**: imagens versionadas no GitHub Container Registry após merge na `main` (ou via `workflow_dispatch`). **Não** faz deploy automático em VPS.
 
-Imagens:
+Imagem publicada por este repositório:
 
-- `ghcr.io/<owner>/fiapf3-account:latest` e `:<sha>`
 - `ghcr.io/<owner>/fiapf3-dealership:latest` e `:<sha>`
+
+`ghcr.io/<owner>/fiapf3-account` é publicada pelo repositório `fiap-fase-4-system`.
 
 Se os pacotes forem privados, autentique o Docker no host que for fazer pull:
 
@@ -457,7 +459,7 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 
 ### Ambiente prod (VPS)
 
-Use `[services.prod.yml](./infra/compose/services.prod.yml)` (`name: fiapf3-prod`): infra local + apps **somente** via `pull` do GHCR (sem `build`). O `up` sobe o stack completo (incluindo Nginx). As APIs ficam disponíveis no host público na porta **80** (`/api/account/…`, `/api/dealership/…`).
+Use `[services.prod.yml](./infra/compose/services.prod.yml)` (`name: fiapf3-dealership-prod`) depois que o Compose de produção de `fiap-fase-4-system` estiver no ar (rede `fiapf3-prod-net`, Nginx na porta **80**). Este `up` só puxa `fiapf3-dealership` do GHCR e sobe o Postgres `fiapf3_dealership`. O acesso continua `/api/dealership/…` pelo Nginx do outro repositório.
 
 ```bash
 cp infra/compose/.env.prod.example infra/compose/.env.prod
@@ -553,13 +555,11 @@ Prefixos **públicos via Nginx:** `/api/account/…` e `/api/dealership/…` (o 
 
 O schema é de cada serviço via Flyway (`ddl-auto=validate`):
 
-- Migrações account — `backends/account-api/src/main/resources/db/migration/`
 - Migrações dealership — `backends/dealership-api/src/main/resources/db/migration/`
-- Bootstrap do Postgres — `infra/confs/postgresql/initdb.d/`
-- Realm Keycloak — `infra/confs/keycloak/import/fiap-car-sales-realm.json`
-- Bootstrap do Garage — Compose (`--single-node --default-bucket` + `GARAGE_*` no `.env`)
+- Bootstrap do Postgres deste repo — `infra/confs/postgresql/initdb.d/` (`fiapf3_dealership`)
+- Migrações account, realm Keycloak e Garage — repositório `fiap-fase-4-system`
 
-Bancos lógicos: `fiapf3_account`, `fiapf3_dealership` e `keycloak`.
+Banco lógico deste Compose: `fiapf3_dealership`. `fiapf3_account` e `keycloak` ficam no Postgres da account.
 
 ---
 
@@ -567,23 +567,29 @@ Bancos lógicos: `fiapf3_account`, `fiapf3_dealership` e `keycloak`.
 
 ## Checklist do desafio
 
+Os itens de [docs/0-fiap-fase-4.md](./docs/0-fiap-fase-4.md) estão atendidos.
 
-| Requisito                                                      | Status                                                                                                     |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Cadastrar veículo (marca, modelo, ano, cor, preço)             | Atendido (`dealership-api`)                                                                                |
-| Editar dados do veículo                                        | Atendido (`PUT /cars/{id}` se `AVAILABLE`)                                                                 |
-| Compra online para pessoas cadastradas                         | Atendido (cadastro prévio + CPF no perfil `VALIDATED` + compra em `AWAITING_PAYMENT`) |
-| Confirmação ou cancelamento do pagamento                       | Atendido (`POST /payments/{paymentCode}` com client `payment-processor`)             |
-| Listagem à venda por preço (barato → caro)                     | Atendido (`status=AVAILABLE&sort=price,asc`)                                          |
-| Listagem vendidos por preço                                    | Atendido (`status=SOLD&sort=price,asc`)                                                                    |
-| Registro/autorização apartados dos dados de venda              | Atendido (Keycloak + `account-api` ≠ `dealership-api`)                                                     |
-| `README.md` (o que é, como usar, como testar)                  | Atendido (este arquivo)                                                                                    |
-| Código-fonte funcional das funcionalidades                     | Atendido (APIs + Compose)                                                                                  |
-| Versionado no GitHub                                           | Atendido                                                                                                   |
-| Testes automatizados                                           | Atendido (`./mvnw verify` + REST Assured)                                                                  |
+
+| Requisito | Status |
+| --- | --- |
+| Cadastrar veículo (marca, modelo, ano, cor, preço) | Atendido (`dealership-api`) |
+| Editar dados do veículo | Atendido (`PUT /cars/{id}` se `AVAILABLE`) |
+| Compra com CPF e data de venda | Atendido (perfil `VALIDATED` + compra em `AWAITING_PAYMENT`; `soldAt` no webhook `PAID`) |
+| Webhook de pagamento (`PAID` / `CANCELLED`) | Atendido (`POST /payments/{paymentCode}` com client `payment-processor`) |
+| Listagem à venda por preço (barato → caro) | Atendido (`status=AVAILABLE&sort=price,asc`) |
+| Listagem vendidos por preço | Atendido (`status=SOLD&sort=price,asc`) |
+| Serviço de venda isolado, com banco próprio | Atendido (este repo, Postgres `fiapf3_dealership`) |
+| Demais funções em outro repositório e outro banco | Atendido (`fiap-fase-4-system`: `account-api`, Postgres `fiapf3_account` + `keycloak`) |
+| Comunicação só por HTTP, cada serviço no seu limite | Atendido (esta API chama a account no validate buyer; a account não chama a dealership nem abre `fiapf3_dealership`) |
+| Escalar a API de dealership conforme a carga | Atendido (serviço, imagem, Compose e banco isolados; ver abaixo) |
+| CI/CD por repositório, gatilho no merge da `main` | Atendido (CI `./mvnw verify`; CD publica `fiapf3-dealership` no GHCR). O `up` na VPS é o Compose de produção |
+| Testes automatizados | Atendido (`./mvnw verify` + REST Assured no `dealership-ci`) |
+| `README.md` (o que é, como usar, como testar) | Atendido (este arquivo) |
 | CI/CD e deploy automatizado                                    | CI + CD (publish GHCR) atendidos; deploy na VPS é **manual** via `services.prod.yml` (sem SSH no Actions) |
 | Campos e funcionalidades necessárias para atender os requisito | Atendido (campos e funcionalidades tanto necessários como incrementais foram cuidadosamente implementados) |
-| Documentação de arquitetura                                    | `[docs/3-arquitetura-proposta-v1.md](./docs/3-arquitetura-proposta-v1.md)`                                 |
+| Documentação de arquitetura                                    | `[docs/3-arquitetura-proposta-v1.md](./docs/3-arquitetura-proposta-v1.md)
+
+Listagem e compra ficam nesta API, com Postgres próprio, imagem `fiapf3-dealership` e Compose próprio. A API é stateless (JWT e lock no Redis), então dá para subir mais réplicas de `fiapf3-dealership` na rede `fiapf3-dev-net` / `fiapf3-prod-net` sem escalar a account. O Nginx da account já encaminha `/api/dealership/*` para o hostname `dealership`. O Compose atual sobe uma réplica; o isolamento é o que permite crescer esse serviço à parte.
 
 
 ---
@@ -592,6 +598,6 @@ Bancos lógicos: `fiapf3_account`, `fiapf3_dealership` e `keycloak`.
 
 ## Licença e contexto acadêmico
 
-Projeto acadêmico da **FIAP — PósTech Software Architecture (SOAT), Fase 3** (plataforma de revenda de veículos).
+Projeto acadêmico da **FIAP — PósTech Software Architecture (SOAT), Fase 4** (plataforma de revenda de veículos).
 
 Construído com Java 21, Spring Boot 4, Keycloak, PostgreSQL, Redis, Garage, Prometheus e Grafana (integração síncrona HTTP entre os serviços).
